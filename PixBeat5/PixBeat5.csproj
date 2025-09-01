@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+		<ApplicationIcon>pixbeat.ico</ApplicationIcon>
+		<AssemblyTitle>PixBeat 5.0</AssemblyTitle>
+		<AssemblyVersion>5.0.0.0</AssemblyVersion>
+		<FileVersion>5.0.0.0</FileVersion>
+		<Company>LuyenAI.vn</Company>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="ModernWpfUI" Version="0.9.6" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+		<PackageReference Include="NAudio" Version="2.2.1" />
+		<PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.6" />
+		<PackageReference Include="FFMpegCore" Version="5.1.0" />
+		<PackageReference Include="System.Text.Json" Version="8.0.3" />
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2420.47" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Resource Include="Assets\**\*" />
+		<Content Include="Python\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Templates\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Assets\" />
+	  <Folder Include="Controls\" />
+	  <Folder Include="Views\" />
+	</ItemGroup>
+
+</Project>

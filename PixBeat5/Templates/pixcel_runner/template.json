@@ -1,0 +1,22 @@
+{
+  "id": "pixel_runner",
+  "name": "Pixel Runner",
+  "description": "Retro pixel art runner with beat-synced jumping",
+  "tags": [ "pixel", "game", "retro" ],
+  "parameters": {
+    "runner_speed": {
+      "type": "float",
+      "defaultValue": 1.0,
+      "minValue": 0.5,
+      "maxValue": 2.0,
+      "description": "Runner animation speed"
+    },
+    "jump_height": {
+      "type": "float",
+      "defaultValue": 20.0,
+      "minValue": 10.0,
+      "maxValue": 50.0,
+      "description": "Jump height on beats"
+    }
+  }
+}
