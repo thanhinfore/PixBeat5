@@ -203,54 +203,40 @@
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <!-- Reset Project Button -->
                 <Button Content="Reset Project" 
                        Command="{Binding ResetProjectCommand}"
                        Margin="0,0,10,0">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="IsEnabled" Value="True"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsProcessing}" Value="True">
-                                    <Setter Property="IsEnabled" Value="False"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
+                    <Button.IsEnabled>
+                        <Binding Path="IsProcessing">
+                            <Binding.Converter>
+                                <BooleanToVisibilityConverter/>
+                            </Binding.Converter>
+                            <Binding.ConverterParameter>
+                                <sys:Boolean xmlns:sys="clr-namespace:System;assembly=mscorlib">True</sys:Boolean>
+                            </Binding.ConverterParameter>
+                        </Binding>
+                    </Button.IsEnabled>
                 </Button>
 
+                <!-- Open Output Folder Button -->
                 <Button Content="Open Output Folder" 
                        Command="{Binding OpenOutputFolderCommand}"
-                       Margin="0,0,10,0">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasOutputFile}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                       Margin="0,0,10,0"
+                       Visibility="{Binding HasOutputFile, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
+                <!-- Generate Video Button -->
                 <Button Content="🎬 Generate Video!" 
                        Command="{Binding GenerateVideoCommand}"
-                       Style="{StaticResource AccentButtonStyle}"
+                       Background="{StaticResource AccentBrush}"
+                       Foreground="White"
+                       BorderBrush="{StaticResource AccentBrush}"
+                       Padding="16,8"
+                       FontWeight="SemiBold"
                        Width="150" Height="40"
-                       FontSize="14" FontWeight="SemiBold">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
-                            <Setter Property="IsEnabled" Value="False"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding CanRender}" Value="True">
-                                    <Setter Property="IsEnabled" Value="True"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
+                       FontSize="14"
+                       IsEnabled="{Binding CanRender}"/>
             </StackPanel>
         </Grid>
     </Grid>
-
 </Window>
