@@ -10,8 +10,23 @@
                 <ui:XamlControlsResources />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Custom Resources -->
+            <!-- Only built-in converters -->
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+            <!-- Fallback brushes -->
+            <SolidColorBrush x:Key="CardBackground" Color="#2D2D30"/>
+            <SolidColorBrush x:Key="CardBorder" Color="#404040"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+            <SolidColorBrush x:Key="ChromeLowBrush" Color="#383838"/>
+
+            <!-- Simple button styles -->
+            <Style x:Key="AccentButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

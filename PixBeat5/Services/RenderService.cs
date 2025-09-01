@@ -74,12 +74,24 @@ public class RenderService : IRenderService
 
         if (!File.Exists(templatePath))
         {
-            throw new FileNotFoundException($"Template not found: {templateName}");
+            return new TemplateInfo
+            {
+                Id = templateName,
+                Name = templateName,
+                Description = "Default template"
+            };
         }
 
-        var json = await File.ReadAllTextAsync(templatePath);
-        var template = JsonSerializer.Deserialize<TemplateInfo>(json);
-        return template ?? throw new InvalidOperationException($"Failed to load template: {templateName}");
+        try
+        {
+            var json = await File.ReadAllTextAsync(templatePath);
+            var template = JsonSerializer.Deserialize<TemplateInfo>(json);
+            return template ?? new TemplateInfo { Id = templateName, Name = templateName };
+        }
+        catch
+        {
+            return new TemplateInfo { Id = templateName, Name = templateName };
+        }
     }
 
     private async Task<string[]> GenerateFramesAsync(
@@ -135,10 +147,8 @@ public class RenderService : IRenderService
         using var surface = SKSurface.Create(new SKImageInfo(project.Settings.Width, project.Settings.Height));
         var canvas = surface.Canvas;
 
-        // Clear background
         canvas.Clear(SKColors.Black);
 
-        // Simple template rendering based on template type
         switch (template.Id)
         {
             case "pixel_runner":
@@ -155,13 +165,11 @@ public class RenderService : IRenderService
                 break;
         }
 
-        // Add watermark
         if (!string.IsNullOrEmpty(project.Settings.Watermark))
         {
             DrawWatermark(canvas, project.Settings.Watermark, project.Settings);
         }
 
-        // Save frame
         using var image = surface.Snapshot();
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         File.WriteAllBytes(outputPath, data.ToArray());
@@ -172,7 +180,6 @@ public class RenderService : IRenderService
         var audio = project.Audio!;
         var settings = project.Settings;
 
-        // Background gradient
         using var gradient = SKShader.CreateLinearGradient(
             new SKPoint(0, 0), new SKPoint(0, settings.Height),
             new[] { SKColor.Parse("#1a1a2e"), SKColor.Parse("#16213e") },
@@ -180,33 +187,35 @@ public class RenderService : IRenderService
         using var bgPaint = new SKPaint { Shader = gradient };
         canvas.DrawRect(0, 0, settings.Width, settings.Height, bgPaint);
 
-        // Ground
         using var groundPaint = new SKPaint { Color = SKColor.Parse("#0f3460") };
         var groundY = settings.Height - 100;
         canvas.DrawRect(0, groundY, settings.Width, 100, groundPaint);
 
-        // Runner (simple rectangle that "jumps" on beats)
         var runnerX = settings.Width * 0.2f;
         var runnerY = groundY - 60;
 
-        // Check if current time is near a beat
-        var nearestBeat = audio.BeatTimes.OrderBy(bt => Math.Abs(bt - frameTime)).FirstOrDefault();
-        if (Math.Abs(nearestBeat - frameTime) < 0.1) // Within 100ms of beat
+        if (audio.BeatTimes.Length > 0)
         {
-            runnerY -= 20; // Jump effect
+            var nearestBeat = audio.BeatTimes.OrderBy(bt => Math.Abs(bt - frameTime)).FirstOrDefault();
+            if (Math.Abs(nearestBeat - frameTime) < 0.1)
+            {
+                runnerY -= 20;
+            }
         }
 
         using var runnerPaint = new SKPaint { Color = SKColor.Parse("#e94560") };
         canvas.DrawRect(runnerX, runnerY, 40, 60, runnerPaint);
 
-        // Energy visualization as background elements
-        var energyIndex = (int)(frameTime * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
-        if (energyIndex < audio.EnergyLevels.Length)
+        if (audio.EnergyLevels.Length > 0)
         {
-            var energy = audio.EnergyLevels[energyIndex];
-            var alpha = (byte)(energy * 255 * 0.3); // Max 30% opacity
-            using var energyPaint = new SKPaint { Color = SKColors.White.WithAlpha(alpha) };
-            canvas.DrawRect(0, 0, settings.Width, settings.Height, energyPaint);
+            var energyIndex = (int)(frameTime * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
+            if (energyIndex < audio.EnergyLevels.Length)
+            {
+                var energy = audio.EnergyLevels[energyIndex];
+                var alpha = (byte)(energy * 255 * 0.3);
+                using var energyPaint = new SKPaint { Color = SKColors.White.WithAlpha(alpha) };
+                canvas.DrawRect(0, 0, settings.Width, settings.Height, energyPaint);
+            }
         }
     }
 
@@ -215,14 +224,15 @@ public class RenderService : IRenderService
         var audio = project.Audio!;
         var settings = project.Settings;
 
-        // Dark background
         canvas.Clear(SKColor.Parse("#0a0a0a"));
 
-        // Get current energy
-        var energyIndex = (int)(frameTime * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
-        var currentEnergy = energyIndex < audio.EnergyLevels.Length ? audio.EnergyLevels[energyIndex] : 0;
+        double currentEnergy = 0;
+        if (audio.EnergyLevels.Length > 0)
+        {
+            var energyIndex = (int)(frameTime * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
+            currentEnergy = energyIndex < audio.EnergyLevels.Length ? audio.EnergyLevels[energyIndex] : 0;
+        }
 
-        // Draw equalizer bars
         var barCount = 20;
         var barWidth = settings.Width / (float)barCount;
 
@@ -234,8 +244,7 @@ public class RenderService : IRenderService
             var x = i * barWidth;
             var y = settings.Height - barHeight;
 
-            // Color based on frequency (low = red, high = blue)
-            var hue = i / (float)barCount * 300; // 0-300 degrees
+            var hue = i / (float)barCount * 300;
             barPaint.Color = SKColor.FromHsl(hue, 100, 50);
 
             canvas.DrawRect(x + 2, y, barWidth - 4, barHeight, barPaint);
@@ -247,7 +256,6 @@ public class RenderService : IRenderService
         var audio = project.Audio!;
         var settings = project.Settings;
 
-        // Gradient background
         using var gradient = SKShader.CreateRadialGradient(
             new SKPoint(settings.Width / 2, settings.Height / 2), settings.Width / 2,
             new[] { SKColor.Parse("#2d1b69"), SKColor.Parse("#11002e") },
@@ -255,7 +263,6 @@ public class RenderService : IRenderService
         using var bgPaint = new SKPaint { Shader = gradient };
         canvas.DrawRect(0, 0, settings.Width, settings.Height, bgPaint);
 
-        // Draw waveform
         using var waveformPath = new SKPath();
         using var waveformPaint = new SKPaint
         {
@@ -269,27 +276,28 @@ public class RenderService : IRenderService
         var waveformWidth = settings.Width * 0.8f;
         var startX = settings.Width * 0.1f;
 
-        for (int i = 0; i < waveformWidth; i++)
+        if (audio.EnergyLevels.Length > 0)
         {
-            var time = frameTime + (i - waveformWidth / 2) * 0.01; // Show wave around current time
-            if (time >= 0 && time < audio.Duration.TotalSeconds)
+            for (int i = 0; i < waveformWidth; i++)
             {
-                var energyIndex = (int)(time * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
-                var energy = energyIndex < audio.EnergyLevels.Length ? audio.EnergyLevels[energyIndex] : 0;
+                var time = frameTime + (i - waveformWidth / 2) * 0.01;
+                if (time >= 0 && time < audio.Duration.TotalSeconds)
+                {
+                    var energyIndex = (int)(time * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
+                    var energy = energyIndex < audio.EnergyLevels.Length ? audio.EnergyLevels[energyIndex] : 0;
 
-                var y = centerY + (float)(energy * 100 * Math.Sin(time * 10));
-                var x = startX + i;
+                    var y = centerY + (float)(energy * 100 * Math.Sin(time * 10));
+                    var x = startX + i;
 
-                if (i == 0)
-                    waveformPath.MoveTo(x, y);
-                else
-                    waveformPath.LineTo(x, y);
+                    if (i == 0)
+                        waveformPath.MoveTo(x, y);
+                    else
+                        waveformPath.LineTo(x, y);
+                }
             }
+            canvas.DrawPath(waveformPath, waveformPaint);
         }
 
-        canvas.DrawPath(waveformPath, waveformPaint);
-
-        // Current time indicator
         using var indicatorPaint = new SKPaint { Color = SKColors.White, StrokeWidth = 2 };
         var indicatorX = startX + waveformWidth / 2;
         canvas.DrawLine(indicatorX, 0, indicatorX, settings.Height, indicatorPaint);
@@ -300,11 +308,14 @@ public class RenderService : IRenderService
         var audio = project.Audio!;
         var settings = project.Settings;
 
-        // Simple pulsing circle based on energy
         canvas.Clear(SKColors.Black);
 
-        var energyIndex = (int)(frameTime * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
-        var currentEnergy = energyIndex < audio.EnergyLevels.Length ? audio.EnergyLevels[energyIndex] : 0;
+        double currentEnergy = 0;
+        if (audio.EnergyLevels.Length > 0)
+        {
+            var energyIndex = (int)(frameTime * audio.EnergyLevels.Length / audio.Duration.TotalSeconds);
+            currentEnergy = energyIndex < audio.EnergyLevels.Length ? audio.EnergyLevels[energyIndex] : 0;
+        }
 
         var centerX = settings.Width / 2f;
         var centerY = settings.Height / 2f;
@@ -347,36 +358,42 @@ public class RenderService : IRenderService
 
         var framePattern = Path.Combine(Path.GetDirectoryName(frameFiles[0])!, "frame_%06d.png");
 
-        await FFMpegArguments
-            .FromFileInput(framePattern, false, options => options.WithFramerate(settings.Fps))
-            .AddFileInput(audioPath)
-            .OutputToFile(outputPath, true, options =>
+        try
+        {
+            // Simple FFMpegCore approach without complex options
+            var inputVideo = FFMpegArguments.FromFileInput(framePattern, false, options =>
             {
-                options
-                    .WithVideoCodec(VideoCodec.LibX264)
-                    .WithAudioCodec(AudioCodec.Aac)
-                    .WithVariableBitrate(4)
-                    .WithVideoFilters(filterOptions => filterOptions.Scale(settings.Width, settings.Height))
-                    .WithFastStart()
-                    .WithArgument(new Argument("-pix_fmt yuv420p"))
-                    .WithArgument(new Argument("-shortest"));
+                options.WithFramerate(settings.Fps);
+            });
 
-                // Quality settings
-                switch (settings.Quality)
+            await inputVideo
+                .AddFileInput(audioPath)
+                .OutputToFile(outputPath, true, options =>
                 {
-                    case "Draft":
-                        options.WithArgument(new Argument("-crf 28"));
-                        break;
-                    case "High":
-                        options.WithArgument(new Argument("-crf 18"));
-                        break;
-                    default: // Standard
-                        options.WithArgument(new Argument("-crf 23"));
-                        break;
-                }
-            })
-            .ProcessAsynchronously(true, cancellationToken);
+                    options.WithVideoCodec(VideoCodec.LibX264)
+                          .WithAudioCodec(AudioCodec.Aac)
+                          .WithVariableBitrate(4)
+                          .WithFastStart();
 
-        return outputPath;
+                    // Add custom arguments as strings
+                    if (settings.Quality == "Draft")
+                        options.WithCustomArgument("-crf 28");
+                    else if (settings.Quality == "High")
+                        options.WithCustomArgument("-crf 18");
+                    else
+                        options.WithCustomArgument("-crf 23");
+
+                    options.WithCustomArgument("-pix_fmt yuv420p")
+                           .WithCustomArgument("-shortest");
+                })
+                .ProcessAsynchronously(throwOnError: true, cancellationToken);
+
+            return outputPath;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "FFmpeg encoding failed");
+            throw new InvalidOperationException($"Video encoding failed: {ex.Message}", ex);
+        }
     }
 }

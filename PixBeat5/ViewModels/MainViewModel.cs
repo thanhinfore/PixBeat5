@@ -5,6 +5,7 @@ using Microsoft.Win32;
 using PixBeat5.Models;
 using PixBeat5.Services;
 using System.Collections.ObjectModel;
+using System.IO;
 
 namespace PixBeat5.ViewModels;
 
@@ -41,6 +42,34 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _canRender = false;
 
+    [ObservableProperty]
+    private bool _hasOutputFile = false;
+
+    // UI binding properties
+    [ObservableProperty]
+    private string _audioFilePath = "No audio file selected";
+
+    [ObservableProperty]
+    private double _tempo = 0;
+
+    [ObservableProperty]
+    private string _genre = "Unknown";
+
+    [ObservableProperty]
+    private string _key = "C";
+
+    [ObservableProperty]
+    private string _mode = "major";
+
+    [ObservableProperty]
+    private TimeSpan _duration = TimeSpan.Zero;
+
+    [ObservableProperty]
+    private string _watermarkText = "LuyenAI.vn";
+
+    [ObservableProperty]
+    private string _outputPath = "";
+
     public ObservableCollection<TemplateInfo> AvailableTemplates { get; } = new();
 
     public MainViewModel(
@@ -73,12 +102,24 @@ public partial class MainViewModel : ObservableObject
                 StatusMessage = "Analyzing audio...";
                 ProgressValue = 0;
 
-                CurrentProject.Audio = await _audioService.AnalyzeAsync(dialog.FileName);
+                var audioData = await _audioService.AnalyzeAsync(dialog.FileName);
+
+                // Update project
+                CurrentProject.Audio = audioData;
+
+                // Update UI properties
+                AudioFilePath = Path.GetFileName(audioData.FilePath);
+                Tempo = audioData.Tempo;
+                Genre = audioData.Genre;
+                Key = audioData.Key;
+                Mode = audioData.Mode;
+                Duration = audioData.Duration;
+
                 HasAudioFile = true;
                 HasAnalysis = true;
                 UpdateCanRender();
 
-                StatusMessage = $"Audio analysis complete - BPM: {CurrentProject.Audio.Tempo:F1}, Genre: {CurrentProject.Audio.Genre}";
+                StatusMessage = $"Audio analysis complete - BPM: {Tempo:F1}, Genre: {Genre}";
                 _logger.LogInformation("Audio file loaded and analyzed: {FileName}", dialog.FileName);
             }
             catch (Exception ex)
@@ -95,6 +136,15 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SelectTemplate(string templateId)
+    {
+        SelectedTemplate = templateId;
+        CurrentProject.Template = templateId;
+        StatusMessage = $"Selected template: {templateId}";
+        UpdateCanRender();
+    }
+
+    [RelayCommand]
     private async Task GenerateVideoAsync()
     {
         if (!CanRender) return;
@@ -103,6 +153,9 @@ public partial class MainViewModel : ObservableObject
         {
             IsProcessing = true;
             StatusMessage = "Generating video...";
+
+            // Update project settings
+            CurrentProject.Settings.Watermark = WatermarkText;
 
             var progress = new Progress<RenderProgress>(p =>
             {
@@ -115,7 +168,9 @@ public partial class MainViewModel : ObservableObject
             var outputPath = await _renderService.RenderVideoAsync(CurrentProject, progress);
 
             StatusMessage = $"Video generated successfully: {Path.GetFileName(outputPath)}";
+            OutputPath = outputPath;
             CurrentProject.OutputPath = outputPath;
+            HasOutputFile = true;
 
             _logger.LogInformation("Video generation completed: {OutputPath}", outputPath);
 
@@ -150,9 +205,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenOutputFolder()
     {
-        if (!string.IsNullOrEmpty(CurrentProject.OutputPath) && File.Exists(CurrentProject.OutputPath))
+        if (!string.IsNullOrEmpty(OutputPath) && File.Exists(OutputPath))
         {
-            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{CurrentProject.OutputPath}\"");
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{OutputPath}\"");
         }
     }
 
@@ -160,8 +215,19 @@ public partial class MainViewModel : ObservableObject
     private void ResetProject()
     {
         CurrentProject = new ProjectData();
+
+        // Reset UI properties
+        AudioFilePath = "No audio file selected";
+        Tempo = 0;
+        Genre = "Unknown";
+        Key = "C";
+        Mode = "major";
+        Duration = TimeSpan.Zero;
+        OutputPath = "";
+
         HasAudioFile = false;
         HasAnalysis = false;
+        HasOutputFile = false;
         UpdateCanRender();
         StatusMessage = "Project reset";
         ProgressValue = 0;
