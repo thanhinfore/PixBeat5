@@ -24,12 +24,24 @@ public partial class App : Application
                     builder.SetMinimumLevel(LogLevel.Information);
                 });
 
-                // Services
+                // Services - Register multiple render services
                 services.AddSingleton<IAudioAnalysisService, AudioAnalysisService>();
-                services.AddSingleton<IRenderService, RenderService>();
 
-                // ViewModels
-                services.AddTransient<MainViewModel>();
+                // Register all render services
+                services.AddSingleton<EnhancedRenderService>();
+                services.AddSingleton<SatisfyingRenderService>();
+                services.AddSingleton<SquareBoomRenderService>();
+
+                // Factory to select render service based on style
+                services.AddSingleton<IRenderService>(provider =>
+                {
+                    // Default to SquareBoom for now
+                    // TODO: Make this configurable via settings
+                    return provider.GetRequiredService<SquareBoomRenderService>();
+                });
+
+                // ViewModels - Use Enhanced version
+                services.AddTransient<EnhancedMainViewModel>();
             })
             .Build();
 
