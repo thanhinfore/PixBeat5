@@ -31,6 +31,7 @@ public partial class App : Application
                 services.AddSingleton<EnhancedRenderService>();
                 services.AddSingleton<SatisfyingRenderService>();
                 services.AddSingleton<SquareBoomRenderService>();
+                services.AddSingleton<EnhancedSquareBoomRenderService>();
 
                 // Factory to select render service based on style
                 services.AddSingleton<IRenderService>(provider =>
