@@ -1,474 +1,405 @@
-﻿# PixBeat 5.0 🎵
+﻿# 📋 YÊU CẦU PHÁT TRIỂN PHẦN MỀM PIXBEAT 5.0 - SQUARE.BOOM STYLE
 
-**Simple Pixel Art Music Video Generator**
+## 1. TỔNG QUAN DỰ ÁN
 
-PixBeat 5.0 là ứng dụng desktop đơn giản để tạo video pixel art đồng bộ với nhạc. Chỉ với 4 bước đơn giản: Import Audio → AI Analysis → Choose Template → Generate Video!
+### 1.1 Mục tiêu
+Phát triển phần mềm **PixBeat 5.0** - ứng dụng desktop tạo video nhạc pixel art tự động từ file audio, với focus vào style **Square.Boom** (grid ô vuông đập theo nhịp) phổ biến trên TikTok/YouTube Shorts.
 
-![PixBeat Logo](docs/images/pixbeat-banner.png)
+### 1.2 Phạm vi
+- **Platform**: Windows Desktop (WPF .NET 8)
+- **Input**: File nhạc (MP3, WAV, M4A, FLAC)
+- **Output**: Video MP4 (H.264 + AAC) với aspect ratio 9:16, 1:1, 16:9
+- **Style chính**: Square.Boom Grid (8×8 cells pulsing to music)
 
-## ✨ Features
+### 1.3 Người dùng mục tiêu
+- Content creators trên TikTok, Instagram Reels, YouTube Shorts
+- Không yêu cầu kỹ năng kỹ thuật
+- Cần tạo video nhanh, chất lượng cao, đồng bộ với nhạc
 
-- 🤖 **AI-Powered Audio Analysis** - Tự động phát hiện BPM, genre, key, mood
-- 🎨 **Beautiful Templates** - Pixel Runner, Audio Equalizer, Waveform Visualizer
-- 📱 **Social Media Ready** - Export 9:16 (TikTok/Shorts), 1:1 (Instagram), 16:9 (YouTube)
-- ⚡ **Fast Rendering** - Multi-threaded rendering với progress tracking
-- 🎯 **Simple Workflow** - Không cần technical knowledge
-- 💾 **Portable** - Single executable, không cần installation phức tạp
+## 2. YÊU CẦU CHỨC NĂNG (FUNCTIONAL REQUIREMENTS)
 
-## 🎬 Demo
+### 2.1 Audio Analysis Module
 
-![Demo GIF](docs/images/demo.gif)
+#### 2.1.1 Beat Detection
+- **Input**: File audio (MP3/WAV/M4A/FLAC)
+- **Processing**:
+  - Sử dụng librosa (Python) với dynamic programming
+  - Sample rate: 44100 Hz
+  - Beat tracking với `librosa.beat.beat_track()`
+- **Output**: Mảng beat times (seconds) với độ chính xác ±50ms
 
-### Sample Outputs
+#### 2.1.2 Onset Detection
+- **Mục đích**: Phát hiện điểm bắt đầu của nốt nhạc/âm thanh
+- **Processing**:
+  - Onset strength envelope calculation
+  - Spectral centroid để ước lượng frequency
+  - Threshold: strength > 0.7 cho strong onsets
+- **Output**: 
+  ```json
+  {
+    "t": 1.234,        // time in seconds
+    "strength": 0.85,  // 0.0 to 1.0
+    "freq": 3200.0     // frequency in Hz
+  }
+  ```
 
-| Template | Preview | Best For |
-|----------|---------|----------|
-| **Pixel Runner** | ![Runner Preview](docs/images/pixel-runner-preview.png) | Gaming, Retro, Upbeat music |
-| **Audio Equalizer** | ![Equalizer Preview](docs/images/equalizer-preview.png) | Electronic, Dance, Bass-heavy |
-| **Waveform Visualizer** | ![Waveform Preview](docs/images/waveform-preview.png) | Ambient, Chill, Acoustic |
+#### 2.1.3 Section Detection
+- **Mục đích**: Phân đoạn bài hát (intro/verse/chorus/bridge/outro)
+- **Processing**:
+  - Chroma features analysis
+  - Self-similarity matrix
+  - Energy level changes detection
+  - Minimum section length: 5 seconds
+- **Output**: Section boundaries với labels
 
-## 📋 System Requirements
+#### 2.1.4 Loudness Analysis
+- **Mục đích**: Track dynamic range cho swell effects
+- **Processing**:
+  - Short-term LUFS calculation mỗi 0.4s
+  - RMS energy envelope
+- **Output**: Timeline của loudness values (LUFS)
 
-### Minimum Requirements
-- **OS**: Windows 10 (64-bit) hoặc newer
-- **RAM**: 4GB (8GB recommended)
-- **Storage**: 2GB free space
-- **CPU**: Intel Core i3 hoặc AMD equivalent
-- **GPU**: DirectX 11 compatible (optional, for better performance)
+#### 2.1.5 Key Detection
+- **Processing**: Chroma vector analysis
+- **Output**: "Root:Mode" (e.g., "C:maj", "Am:min")
 
-### Software Dependencies
-- **Python 3.8+** với packages: `librosa`, `numpy`, `scipy`
-- **FFmpeg** binary trong system PATH
+### 2.2 Graphics Mapping Module
 
-## 🚀 Quick Start
+#### 2.2.1 Event Mapping Rules
 
-### Option 1: Download Release (Recommended)
+| Event Type | Trigger Condition | Visual Action | Duration | Parameters |
+|------------|------------------|---------------|----------|------------|
+| **Pulse** | On beat | Random 4-8 cells scale up/down | 180ms | scale: 1.0→1.6→1.0 |
+| **Flash** | Strong onset (>0.7) | Row flash based on frequency | 120ms | alpha: 0.3→1.0→0.3 |
+| **Wipe** | Section change | Grid transition L→R or T→B | 600ms | Progressive reveal |
+| **Swell** | Loudness increase >1.5 LU | All cells gentle scale | 400ms | scale: 1.0→1.1→1.0 |
 
-1. **Download** latest release từ [Releases page](https://github.com/luyenai/pixbeat5/releases)
-2. **Extract** zip file
-3. **Install dependencies** (xem [Detailed Installation](#-detailed-installation))
-4. **Run** `PixBeat5.exe`
+#### 2.2.2 Frequency to Grid Mapping
+- **Low frequencies** (100-500 Hz) → Bottom rows (6-7)
+- **Mid frequencies** (500-2000 Hz) → Middle rows (3-5)
+- **High frequencies** (2000-8000 Hz) → Top rows (0-2)
 
-### Option 2: Build from Source
+### 2.3 Rendering Module
 
-```bash
-# Clone repository
-git clone https://github.com/luyenai/pixbeat5.git
-cd pixbeat5
-
-# Build with .NET 8
-dotnet build -c Release
-
-# Run application
-dotnet run
-```
-
-## 🛠️ Detailed Installation
-
-### Step 1: Install Python Dependencies
-
-```bash
-# Option 1: Using pip
-pip install librosa numpy scipy
-
-# Option 2: Using conda
-conda install -c conda-forge librosa numpy scipy
-
-# Verify installation
-python -c "import librosa; print('✓ librosa installed')"
-```
-
-### Step 2: Install FFmpeg
-
-#### Windows (Recommended methods):
-
-**Method 1 - Chocolatey:**
-```bash
-# Install Chocolatey first: https://chocolatey.org/install
-choco install ffmpeg
-```
-
-**Method 2 - Manual Installation:**
-1. Download FFmpeg từ https://www.gyan.dev/ffmpeg/builds/
-2. Extract to `C:\ffmpeg`
-3. Add `C:\ffmpeg\bin` to system PATH
-4. Verify: `ffmpeg -version`
-
-**Method 3 - Winget:**
-```bash
-winget install Gyan.FFmpeg
-```
-
-### Step 3: Verify Installation
-
-```bash
-# Check Python
-python --version
-python -c "import librosa, numpy, scipy; print('✓ All Python packages OK')"
-
-# Check FFmpeg
-ffmpeg -version
-```
-
-### Step 4: Run PixBeat 5.0
-
-- **From Release**: Double-click `PixBeat5.exe`
-- **From Source**: `dotnet run` hoặc F5 trong Visual Studio
-
-## 📖 Usage Guide
-
-### Basic Workflow
-
-#### 1️⃣ Select Audio File
-- Click **"Browse Audio File"**
-- Supported formats: MP3, WAV, M4A, FLAC
-- File size limit: 100MB
-- **Tip**: Best results với clear beats và steady tempo
-
-#### 2️⃣ AI Analysis (Automatic)
-- AI analyzes audio trong 10-30 giây
-- Detects: BPM, Genre, Musical Key, Mood
-- Beat detection cho template synchronization
-- **Note**: Accuracy tùy thuộc vào audio quality
-
-#### 3️⃣ Choose Template
-
-| Template | Description | Best For |
-|----------|-------------|----------|
-| **Pixel Runner** | Retro game character nhảy theo beat | Gaming content, nostalgic vibes |
-| **Audio Equalizer** | Classic equalizer bars | Electronic music, clean visualization |
-| **Waveform Visualizer** | Smooth waveform với effects | Ambient music, professional look |
-
-#### 4️⃣ Configure Settings
-
-**Aspect Ratio:**
-- `9:16` - TikTok, Instagram Reels, YouTube Shorts
-- `1:1` - Instagram posts, Facebook
-- `16:9` - YouTube videos, presentations
-
-**Duration:**
-- `15 seconds` - Quick clips
-- `30 seconds` - Standard social media
-- `60 seconds` - Extended content
-- `Full song` - Complete track (use carefully!)
-
-**Quality:**
-- `Draft` - Fast render, lower quality (720p)
-- `Standard` - Balanced quality/speed (1080p)
-- `High` - Best quality, slower render (1080p + higher bitrate)
-
-#### 5️⃣ Generate Video
-- Click **"🎬 Generate Video!"**
-- Progress bar shows rendering status
-- Video saved to `%USERPROFILE%\Videos\`
-- Click **"Open Output Folder"** to locate file
-
-### Advanced Tips
-
-#### Getting Better Results
-
-**Audio Selection:**
-- ✅ Clear, well-mastered tracks
-- ✅ Consistent tempo throughout
-- ✅ Strong beat/rhythm
-- ❌ Live recordings với audience noise
-- ❌ Classical music với tempo changes
-- ❌ Very quiet hoặc heavily compressed audio
-
-**Template Selection:**
-- **Electronic/Dance** → Audio Equalizer
-- **Rock/Pop** → Pixel Runner
-- **Ambient/Chill** → Waveform Visualizer
-
-#### Customization Options
-
-**Watermark:**
-- Add custom text hoặc leave empty
-- Positioned at bottom-right
-- Semi-transparent overlay
-
-**Performance Optimization:**
-- Close other applications during rendering
-- Use SSD for better I/O performance
-- Draft quality cho quick previews
-
-## 🎨 Template Details
-
-### Pixel Runner
+#### 2.3.1 Grid Configuration
 ```json
 {
-  "style": "8-bit pixel art",
-  "elements": ["Running character", "Jumping on beats", "Parallax background", "Energy flashes"],
-  "colors": "Retro palette (blues, reds, oranges)",
-  "best_for": ["Gaming content", "Upbeat music", "Nostalgic vibes"]
+  "rows": 8,        // default, range: 6-12
+  "cols": 8,        // default, range: 6-12
+  "gap": 8,         // pixels between cells
+  "border": 4,      // outer border pixels
+  "cornerRadius": 4 // rounded corners
 }
 ```
 
-### Audio Equalizer
-```json
-{
-  "style": "Classic audio visualizer",
-  "elements": ["20 frequency bars", "Real-time audio analysis", "Color spectrum"],
-  "colors": "Rainbow gradient based on frequency",
-  "best_for": ["Electronic music", "Clean visualization", "Professional look"]
-}
+#### 2.3.2 Visual Effects
+- **Cell rendering**:
+  - Gradient fill (light→dark diagonal)
+  - Rounded corners (4px default, 6px when animating)
+  - Inner highlight for 3D effect
+  - Glow effect when scale > 1.1
+
+- **Background**:
+  - Animated radial gradient
+  - Subtle noise texture overlay
+  - Vignette effect
+
+- **Particles**:
+  - Spawn on beats (3-8 particles)
+  - Float upward with physics
+  - Fade out over 1 second
+
+#### 2.3.3 Color Palettes
+
+| Palette | Use Case | Background | Cell Colors |
+|---------|----------|------------|-------------|
+| **Vibrant** | Default/Happy | #000000→#0a0e27 | White, Cyan, Yellow, Red, Purple |
+| **Neon** | Electronic/Energetic | #0A0A0A→#1a0033 | Hot pink, Electric blue, Lime |
+| **Sunset** | Calm/Chill | #1a0033→#330033 | Warm oranges, Purples, Teals |
+
+### 2.4 Export Module
+
+#### 2.4.1 Video Specifications
+- **Codec**: H.264 (libx264)
+- **Audio**: AAC
+- **Frame rate**: 60 fps (smooth animations)
+- **Bitrate**: Variable (CRF 18-28)
+- **Pixel format**: yuv420p
+- **Resolutions**:
+  - 9:16 → 1080×1920 (TikTok/Shorts)
+  - 1:1 → 1080×1080 (Instagram)
+  - 16:9 → 1920×1080 (YouTube)
+
+#### 2.4.2 Quality Presets
+| Preset | CRF | FPS | Use Case |
+|--------|-----|-----|----------|
+| Draft | 28 | 30 | Quick preview |
+| Standard | 23 | 60 | Social media |
+| High | 18 | 60 | Professional |
+
+## 3. YÊU CẦU PHI CHỨC NĂNG (NON-FUNCTIONAL REQUIREMENTS)
+
+### 3.1 Performance
+- **Render speed**: ≥2× realtime on Intel i5/Ryzen 5
+- **Memory usage**: <2GB for 60-second video
+- **Multi-threading**: Parallel frame generation
+- **Frame accuracy**: Audio-visual sync within ±1 frame
+
+### 3.2 Accuracy
+- **Beat detection**: >95% accuracy for electronic/pop music
+- **Section boundaries**: ±2 seconds tolerance
+- **Onset precision**: >0.8 for clear transients
+- **Frequency mapping**: Logarithmic scale 100-8000 Hz
+
+### 3.3 Usability
+- **Workflow**: 4 steps max (Import → Analyze → Customize → Export)
+- **Processing feedback**: Real-time progress with ETA
+- **Error handling**: Clear messages with recovery suggestions
+- **Default settings**: Optimal for most use cases
+
+### 3.4 Compatibility
+- **OS**: Windows 10/11 64-bit
+- **Dependencies**:
+  - .NET 8.0 Runtime
+  - Python 3.8+ with librosa
+  - FFmpeg 4.4+
+- **File formats**:
+  - Input: MP3, WAV, M4A, FLAC (up to 320kbps)
+  - Output: MP4 (H.264/AAC)
+
+## 4. TECHNICAL ARCHITECTURE
+
+### 4.1 Technology Stack
+```yaml
+Frontend:
+  - WPF (.NET 8)
+  - MVVM pattern
+  - ModernWpfUI
+
+Backend:
+  - C# Services (DI pattern)
+  - Python scripts (subprocess)
+  - Async/await throughout
+
+Graphics:
+  - SkiaSharp (2D rendering)
+  - Hardware acceleration optional
+
+Audio:
+  - NAudio (C# audio I/O)
+  - librosa (Python analysis)
+
+Video:
+  - FFMpegCore (encoding)
+  - Multi-pass encoding
 ```
 
-### Waveform Visualizer
-```json
-{
-  "style": "Smooth waveform display",
-  "elements": ["Real-time waveform", "Particle effects", "Center timeline"],
-  "colors": "Gradient backgrounds with accent colors",
-  "best_for": ["Ambient music", "Podcasts", "Smooth visuals"]
-}
+### 4.2 Data Flow
+```
+Audio File → Python Analysis → timeline.json
+     ↓
+Timeline → Event Mapper → graphics_events.json
+     ↓
+Events + Template → Frame Generator → PNG frames
+     ↓
+Frames + Audio → FFmpeg Encoder → MP4 Output
 ```
 
-## 🏗️ Technical Architecture
-
-### Project Structure
+### 4.3 Module Structure
 ```
 PixBeat5/
-├── Models/              # Data models (AudioData, ProjectData, etc.)
-├── ViewModels/          # MVVM ViewModels
-├── Services/            # Core services (Audio, Render)
-├── Views/               # WPF Windows and UserControls
-├── Controls/            # Custom WPF controls
-├── Templates/           # Template definitions (JSON)
-├── Assets/              # Images, icons, resources
-├── Python/              # Python scripts for AI analysis
-└── docs/               # Documentation and images
+├── Services/
+│   ├── AudioAnalysisService.cs      # Orchestrates Python analysis
+│   ├── EnhancedSquareBoomRenderService.cs  # Main renderer
+│   └── IRenderer.cs                 # Render interface
+├── Models/
+│   ├── AudioData.cs                 # Audio metadata
+│   ├── ProjectData.cs               # Project settings
+│   └── RenderProgress.cs            # Progress tracking
+├── ViewModels/
+│   └── MainViewModel.cs             # UI logic
+├── Python/
+│   └── analyze_audio_squareboom.py  # Enhanced analysis
+└── Templates/
+    └── squareboom.json              # Template config
 ```
 
-### Core Technologies
-- **Framework**: .NET 8 + WPF
-- **UI**: ModernWPF, MVVM pattern
-- **Graphics**: SkiaSharp for 2D rendering
-- **Audio**: NAudio for basic audio I/O
-- **AI Analysis**: Python + librosa
-- **Video Export**: FFMpegCore
-- **Packaging**: Single-file executable
+## 5. ALGORITHM SPECIFICATIONS
 
-### Performance Characteristics
-- **Frame Generation**: ~30-60 FPS rendering speed
-- **Memory Usage**: ~500MB-2GB depending on video length
-- **CPU Usage**: Multi-threaded, scales với CPU cores
-- **Storage**: Temporary ~1GB per minute of video
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### "Python not found" Error
-```bash
-# Solution 1: Check Python installation
-python --version
-
-# Solution 2: Add Python to PATH
-# Windows: System Properties → Environment Variables → PATH
-
-# Solution 3: Install Python from Microsoft Store
-# Search "Python" trong Microsoft Store
-```
-
-#### "FFmpeg not found" Error
-```bash
-# Check if FFmpeg is installed
-ffmpeg -version
-
-# If not found, install using chocolatey
-choco install ffmpeg
-
-# Or add FFmpeg directory to PATH manually
-```
-
-#### "librosa import error"
-```bash
-# Reinstall librosa với dependencies
-pip uninstall librosa
-pip install librosa
-
-# Or use conda
-conda install -c conda-forge librosa
-```
-
-#### Slow Rendering Performance
-- **Close other applications** to free up CPU/RAM
-- **Use Draft quality** cho quick tests
-- **Reduce video duration** cho faster renders
-- **Check Task Manager** for high CPU usage from other processes
-
-#### Audio Analysis Fails
-- **Check audio file format** - MP3, WAV, M4A, FLAC supported
-- **Try shorter audio files** - Large files (>100MB) may timeout
-- **Ensure audio has clear beats** - Very quiet hoặc ambient tracks may not analyze well
-
-### Log Files and Debugging
-
-**Log Location**: `%TEMP%\PixBeat5\logs\`
-
-**Enable Debug Logging**:
-1. Create `appsettings.json` trong app directory:
-```json
-{
-  "Logging": {
-    "LogLevel": {
-      "Default": "Debug"
-    }
-  }
-}
-```
-
-### Getting Help
-
-1. **Check logs** trong temp directory
-2. **Try với different audio file** 
-3. **Update dependencies** (Python packages, FFmpeg)
-4. **Submit issue** với log files và system info
-
-## 🤝 Contributing
-
-We welcome contributions! Here's how to get started:
-
-### Development Setup
-
-1. **Install Visual Studio 2022** với .NET 8.0 workload
-2. **Install Python 3.8+** với required packages
-3. **Install FFmpeg** và add to PATH
-4. **Clone repository**: `git clone https://github.com/luyenai/pixbeat5.git`
-5. **Open solution** trong Visual Studio: `PixBeat5.sln`
-6. **Build and run**: F5
-
-### Contributing Guidelines
-
-#### Bug Reports
-- Use issue template
-- Include system info (OS, .NET version, Python version)
-- Attach log files if possible
-- Steps to reproduce
-
-#### Feature Requests
-- Check existing issues first
-- Describe use case clearly
-- Consider implementation complexity
-
-#### Pull Requests
-- Fork repository
-- Create feature branch: `git checkout -b feature/new-template`
-- Follow C# coding conventions
-- Add tests for new features
-- Update documentation
-- Submit PR với clear description
-
-### Code Style
-```csharp
-// Use PascalCase for public members
-public class AudioAnalysisService
-{
-    // Use camelCase for private fields
-    private readonly ILogger _logger;
+### 5.1 Beat Tracking Algorithm
+```python
+# Pseudocode
+def detect_beats(audio_signal, sample_rate):
+    # 1. Compute onset strength
+    onset_env = onset_strength(audio_signal)
     
-    // Use async/await pattern
-    public async Task<AudioData> AnalyzeAsync(string audioPath)
-    {
-        // Implementation
+    # 2. Dynamic programming beat tracking
+    tempo, beats = beat_track(
+        onset_envelope=onset_env,
+        sr=sample_rate,
+        tightness=100  # Higher = stricter beat grid
+    )
+    
+    # 3. Convert to timestamps
+    beat_times = frames_to_time(beats, sr=sample_rate)
+    
+    return tempo, beat_times
+```
+
+### 5.2 Cell Animation Algorithm
+```csharp
+// Smooth interpolation for cell scaling
+foreach (var cell in grid) {
+    if (cell.TargetScale != cell.CurrentScale) {
+        // Exponential smoothing
+        cell.CurrentScale = Lerp(
+            cell.CurrentScale, 
+            cell.TargetScale, 
+            0.15f  // Smoothing factor
+        );
+        
+        // Snap to target when close
+        if (Math.Abs(cell.CurrentScale - cell.TargetScale) < 0.01f) {
+            cell.CurrentScale = cell.TargetScale;
+        }
     }
 }
 ```
 
-## 📦 Building and Packaging
-
-### Development Build
-```bash
-dotnet build -c Debug
+### 5.3 Frequency Mapping Algorithm
+```python
+def map_frequency_to_row(frequency_hz, num_rows):
+    # Logarithmic mapping: 100-8000 Hz to row indices
+    # High freq → top rows, Low freq → bottom rows
+    
+    min_freq = 100
+    max_freq = 8000
+    
+    # Normalize to 0-1 using log scale
+    normalized = log10(frequency_hz / min_freq) / log10(max_freq / min_freq)
+    
+    # Invert and map to rows (0=top, num_rows-1=bottom)
+    row = int((1 - normalized) * (num_rows - 1))
+    
+    return clamp(row, 0, num_rows - 1)
 ```
 
-### Release Build
-```bash
-dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+## 6. UI/UX REQUIREMENTS
+
+### 6.1 Main Window Layout
+```
+┌─────────────────────────────────────┐
+│ 🎵 PixBeat 5.0                      │
+│ Square.Boom Video Generator         │
+├─────────────────────────────────────┤
+│ Step 1: Select Audio                │
+│ [Browse...] [song.mp3 ✓]           │
+│ BPM: 128 | Genre: Electronic       │
+├─────────────────────────────────────┤
+│ Step 2: Choose Style                │
+│ (•) Square.Boom  ( ) Pixel Runner  │
+├─────────────────────────────────────┤
+│ Step 3: Settings                    │
+│ Duration: [15s ▼] Quality: [HD ▼]  │
+│ Aspect: [9:16 TikTok ▼]            │
+├─────────────────────────────────────┤
+│ [====progress====] 45% | ETA: 30s  │
+│                                     │
+│        [🎬 Generate Video!]         │
+└─────────────────────────────────────┘
 ```
 
-### Creating Installer
-```bash
-# Using Advanced Installer hoặc similar tool
-# Package the published executable với dependencies
+### 6.2 Feedback Requirements
+- **Analysis phase**: "🎵 Analyzing audio with AI..."
+- **Rendering phase**: "🎨 Creating Frame X/Y | ETA: XXs"
+- **Encoding phase**: "🎥 Encoding HD video..."
+- **Success**: "✅ Video ready! [Open Folder] [Play]"
+
+## 7. TESTING REQUIREMENTS
+
+### 7.1 Unit Tests
+- Beat detection accuracy with reference tracks
+- Frequency mapping correctness
+- Event triggering timing
+- Color interpolation
+
+### 7.2 Integration Tests
+- Full pipeline: Audio → Analysis → Render → Export
+- Different audio formats and sample rates
+- Various video durations (5s, 15s, 30s, 60s)
+- All aspect ratios
+
+### 7.3 Performance Tests
+- Render speed benchmarks
+- Memory leak detection
+- Multi-threading stress test
+- Large file handling (>100MB audio)
+
+### 7.4 Visual Quality Tests
+- Frame consistency (no drops/glitches)
+- Audio-visual synchronization
+- Color accuracy (sRGB compliance)
+- Compression artifacts check
+
+## 8. ACCEPTANCE CRITERIA
+
+### 8.1 Core Functionality
+- ✅ Beats align with grid pulses (±1 frame tolerance)
+- ✅ Frequency mapping creates logical row distribution
+- ✅ Section transitions are smooth and visible
+- ✅ Export creates valid MP4 playable on all platforms
+
+### 8.2 Performance Metrics
+- ✅ 30-second video renders in <15 seconds
+- ✅ Memory usage stays under 2GB
+- ✅ No frame drops at 60fps playback
+- ✅ File size ~50MB/minute at 1080p
+
+### 8.3 User Experience
+- ✅ Complete workflow in <5 clicks
+- ✅ Clear progress indication
+- ✅ Graceful error handling
+- ✅ Reproducible results with same input
+
+## 9. DELIVERABLES
+
+### 9.1 Software Components
+1. **PixBeat5.exe** - Main executable
+2. **Python scripts** - Audio analysis
+3. **Templates** - Predefined configurations
+4. **Documentation** - User guide + API docs
+
+### 9.2 Required Files Structure
+```
+PixBeat5/
+├── PixBeat5.exe
+├── Python/
+│   ├── analyze_audio_squareboom.py
+│   └── requirements.txt
+├── Templates/
+│   └── squareboom.json
+├── Assets/
+│   └── (icons, samples)
+└── README.md
 ```
 
-## 📄 License
+### 9.3 Documentation
+- Installation guide with dependency setup
+- User manual with workflow examples
+- API documentation for extensions
+- Troubleshooting guide
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+## 10. FUTURE ENHANCEMENTS (PHASE 2)
 
-### Third-Party Licenses
-- **ModernWPF**: MIT License
-- **SkiaSharp**: MIT License
-- **NAudio**: MIT License  
-- **FFMpegCore**: MIT License
-- **librosa**: ISC License
-- **FFmpeg**: LGPL/GPL (binary distribution)
-
-## 🙏 Credits and Acknowledgments
-
-### Development Team
-- **Lead Developer**: LuyenAI.vn Team
-- **UI/UX Design**: Modern WPF Community
-- **Audio Processing**: librosa contributors
-
-### Special Thanks
-- **Microsoft** - .NET 8 và WPF framework
-- **Skia team** - SkiaSharp graphics library
-- **FFmpeg team** - Video encoding capabilities
-- **librosa team** - Audio analysis algorithms
-- **Community contributors** - Templates, bug reports, suggestions
-
-### Assets and Resources
-- **Default templates**: Created by PixBeat team
-- **Icons**: Segoe MDL2 Assets font
-- **Sample audio**: Royalty-free tracks for testing
-
-## 🔮 Future Roadmap
-
-### Version 5.1 (Planned)
-- [ ] More template options (Space, Nature themes)
-- [ ] Basic template parameter customization
-- [ ] Export to GIF format
-- [ ] Drag & drop audio files
-- [ ] Built-in audio preview player
-
-### Version 5.2 (Ideas)
-- [ ] Simple batch processing
-- [ ] Custom color palette selection
-- [ ] Basic video effects (fade in/out)
-- [ ] Export presets for different platforms
-- [ ] Performance optimizations
-
-### Long-term Vision
-- Cross-platform support (macOS, Linux)
-- Web-based version for mobile devices
-- Community template marketplace
-- Advanced customization options
-
-## 📞 Support
-
-### Getting Help
-- **Documentation**: This README và [Wiki](https://github.com/luyenai/pixbeat5/wiki)
-- **Issues**: [GitHub Issues](https://github.com/luyenai/pixbeat5/issues)
-- **Community**: [Discussions](https://github.com/luyenai/pixbeat5/discussions)
-
-### Contact Information
-- **Website**: https://luyenai.vn
-- **Email**: support@luyenai.vn
-- **GitHub**: https://github.com/luyenai/pixbeat5
+- **Additional Styles**: Wave circles, Particle systems, 3D grids
+- **AI Features**: Auto style selection, Music genre detection
+- **Social Integration**: Direct upload to TikTok/Instagram
+- **Batch Processing**: Multiple songs queue
+- **Custom Templates**: User-created grid patterns
+- **Real-time Preview**: Live visualization while editing
 
 ---
 
-<p align="center">
-  <img src="docs/images/pixbeat-footer.png" alt="PixBeat" width="200">
-  <br>
-  <strong>Made with ❤️ by LuyenAI.vn</strong>
-  <br>
-  <em>Creating pixel perfect music videos, simplified.</em>
-</p>
-
----
-
-**⭐ If you found PixBeat useful, please give us a star on GitHub! ⭐**
+**Document Version**: 1.0  
+**Last Updated**: 2024  
+**Status**: APPROVED FOR DEVELOPMENT
